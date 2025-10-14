@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baluchat - Real-time Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="whatsapp-chat-container">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="header-info">
+                <div class="avatar" id="userAvatar">E</div>
+                <div class="user-info">
+                    <div class="user-name" id="userName">External User</div>
+                    <div class="connection-status" id="connectionStatus">Connecting...</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+        </div>
+
+        <!-- Room Selection -->
+        <div class="room-selection">
+            <select id="roomSelect">
+                <option value="general">General Chat</option>
+                <option value="support">Support Room</option>
+                <option value="salesforce">Salesforce Room</option>
+                <option value="external">External Room</option>
+            </select>
+            <button id="joinRoomBtn">Join Room</button>
+        </div>
+
+        <!-- Messages Container -->
+        <div class="messages-container" id="messagesContainer">
+            <div class="system-message">
+                Welcome to Baluchat! Join a room to start messaging.
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-container">
+            <div class="typing-indicator" id="typingIndicator" style="display: none;">
+                <span id="typingUser"></span> is typing...
+            </div>
+            <div class="input-group">
+                <input type="text" 
+                       id="messageInput" 
+                       placeholder="Type a message..." 
+                       disabled
+                       maxlength="1000">
+                <button id="sendBtn" disabled>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
