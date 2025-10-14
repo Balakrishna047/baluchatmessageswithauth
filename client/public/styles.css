@@ -258,4 +258,6 @@ body {
 #sendBtn:disabled {
     background: #ccc;
     cursor: not-allowed;
+
+    
 }
