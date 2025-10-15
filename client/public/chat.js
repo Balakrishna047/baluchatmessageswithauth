@@ -5,7 +5,8 @@ class SecureChatClient {
         this.user = null;
         this.currentRoom = 'general';
         this.isConnected = false;
-        this.serverUrl = window.location.origin;
+        // Use localhost for development, production URL for deployed client
+        this.serverUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : 'https://baluchatmessage.onrender.com';
 
         this.initializeEventListeners();
     }
