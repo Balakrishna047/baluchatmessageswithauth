@@ -1,32 +1,34 @@
-const express = require('express');
-const path = require('path');
-const cors = require('cors');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
+// Middleware
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-app.get('/chat', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/health', (req, res) => {
-    res.json({ 
+    res.status(200).json({ 
         status: 'OK', 
-        service: 'Baluchatmessages Client',
+        service: 'Chat Client',
         timestamp: new Date().toISOString()
     });
 });
 
+// Start server
 app.listen(PORT, () => {
-    console.log(`🚀 Baluchatmessages client running on port ${PORT}`);
-    console.log(`📍 http://localhost:${PORT}`);
+    console.log(`🚀 Secure chat client running on port ${PORT}`);
+    console.log(`📍 Access at: http://localhost:${PORT}`);
 });
+
+export default app;

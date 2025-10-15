@@ -1,65 +1,277 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baluchat - Real-time Chat</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="whatsapp-chat-container">
-        <!-- Header -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Chat App</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .container {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        width: 90%;
+        max-width: 400px;
+      }
+
+      .auth-container {
+        padding: 40px 30px;
+      }
+
+      .chat-container {
+        display: none;
+        flex-direction: column;
+        height: 600px;
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+        font-size: 28px;
+      }
+
+      .form-group {
+        margin-bottom: 20px;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 5px;
+        color: #555;
+        font-weight: 500;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 16px;
+        transition: border-color 0.3s;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: #667eea;
+      }
+
+      button {
+        width: 100%;
+        padding: 12px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+      }
+
+      .toggle-auth {
+        text-align: center;
+        margin-top: 20px;
+        color: #666;
+      }
+
+      .toggle-auth a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .chat-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px;
+        text-align: center;
+      }
+
+      .messages {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+        background: #f8f9fa;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        padding: 12px 15px;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+
+      .message.system {
+        background: #e3f2fd;
+        text-align: center;
+        font-style: italic;
+      }
+
+      .message-header {
+        display: flex;
+        justify-content: between;
+        margin-bottom: 5px;
+      }
+
+      .sender {
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      .timestamp {
+        color: #999;
+        font-size: 12px;
+      }
+
+      .input-area {
+        padding: 20px;
+        border-top: 1px solid #e1e5e9;
+        background: white;
+      }
+
+      .room-info {
+        background: #e8f5e8;
+        padding: 10px 20px;
+        text-align: center;
+        color: #2e7d32;
+        font-weight: 500;
+      }
+
+      .error {
+        background: #ffebee;
+        color: #c62828;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+
+      .success {
+        background: #e8f5e8;
+        color: #2e7d32;
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Authentication Section -->
+      <div id="authSection" class="auth-container">
+        <h1>Secure Chat</h1>
+
+        <div id="loginForm">
+          <div class="form-group">
+            <label for="loginUsername">Username</label>
+            <input
+              type="text"
+              id="loginUsername"
+              placeholder="Enter your username"
+            />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <input
+              type="password"
+              id="loginPassword"
+              placeholder="Enter your password"
+            />
+          </div>
+          <button onclick="login()">Login</button>
+          <div class="toggle-auth">
+            Don't have an account? <a onclick="showRegister()">Register</a>
+          </div>
+        </div>
+
+        <div id="registerForm" style="display: none">
+          <div class="form-group">
+            <label for="registerUsername">Username</label>
+            <input
+              type="text"
+              id="registerUsername"
+              placeholder="Choose a username"
+            />
+          </div>
+          <div class="form-group">
+            <label for="registerEmail">Email</label>
+            <input
+              type="email"
+              id="registerEmail"
+              placeholder="Enter your email"
+            />
+          </div>
+          <div class="form-group">
+            <label for="registerPassword">Password</label>
+            <input
+              type="password"
+              id="registerPassword"
+              placeholder="Choose a password"
+            />
+          </div>
+          <button onclick="register()">Register</button>
+          <div class="toggle-auth">
+            Already have an account? <a onclick="showLogin()">Login</a>
+          </div>
+        </div>
+
+        <div id="authMessage"></div>
+      </div>
+
+      <!-- Chat Section -->
+      <div id="chatSection" class="chat-container">
         <div class="chat-header">
-            <div class="header-info">
-                <div class="avatar" id="userAvatar">E</div>
-                <div class="user-info">
-                    <div class="user-name" id="userName">External User</div>
-                    <div class="connection-status" id="connectionStatus">Connecting...</div>
-                </div>
-            </div>
-            <div class="header-actions">
-                <button class="logout-btn" id="logoutBtn">Logout</button>
-            </div>
+          <h1>Chat Room</h1>
+          <div>Welcome, <span id="usernameDisplay"></span></div>
         </div>
 
-        <!-- Room Selection -->
-        <div class="room-selection">
-            <select id="roomSelect">
-                <option value="general">General Chat</option>
-                <option value="support">Support Room</option>
-                <option value="salesforce">Salesforce Room</option>
-                <option value="external">External Room</option>
-            </select>
-            <button id="joinRoomBtn">Join Room</button>
-        </div>
+        <div class="room-info">Room: <span id="roomDisplay">general</span></div>
 
-        <!-- Messages Container -->
-        <div class="messages-container" id="messagesContainer">
-            <div class="system-message">
-                Welcome to Baluchat! Join a room to start messaging.
-            </div>
-        </div>
+        <div id="messages" class="messages"></div>
 
-        <!-- Input Area -->
-        <div class="input-container">
-            <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                <span id="typingUser"></span> is typing...
-            </div>
-            <div class="input-group">
-                <input type="text" 
-                       id="messageInput" 
-                       placeholder="Type a message..." 
-                       disabled
-                       maxlength="1000">
-                <button id="sendBtn" disabled>
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                    </svg>
-                </button>
-            </div>
+        <div class="input-area">
+          <div class="form-group">
+            <input
+              type="text"
+              id="messageInput"
+              placeholder="Type your message..."
+              onkeypress="handleKeyPress(event)"
+            />
+          </div>
+          <button onclick="sendMessage()">Send Message</button>
+          <button
+            onclick="logout()"
+            style="background: #dc3545; margin-top: 10px"
+          >
+            Logout
+          </button>
         </div>
+      </div>
     </div>
 
-    <script src="app.js"></script>
-</body>
+    <script src="chat.js"></script>
+  </body>
 </html>
