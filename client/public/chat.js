@@ -5,7 +5,8 @@ class SecureChatClient {
         this.user = null;
         this.currentRoom = 'general';
         this.isConnected = false;
-        
+        this.serverUrl = window.location.origin;
+
         this.initializeEventListeners();
     }
 
@@ -20,7 +21,7 @@ class SecureChatClient {
 
     async register(username, email, password) {
         try {
-            const response = await fetch('http://localhost:10000/api/auth/register', {
+            const response = await fetch(`${this.serverUrl}/api/auth/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45,7 +46,7 @@ class SecureChatClient {
 
     async login(username, password) {
         try {
-            const response = await fetch('http://localhost:10000/api/auth/login', {
+            const response = await fetch(`${this.serverUrl}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -79,7 +80,8 @@ class SecureChatClient {
 
     connectWebSocket() {
         try {
-            this.ws = new WebSocket(`ws://localhost:10000?token=${this.token}`);
+            const wsUrl = this.serverUrl.replace(/^http/, 'ws');
+            this.ws = new WebSocket(`${wsUrl}?token=${this.token}`);
 
             this.ws.onopen = () => {
                 this.isConnected = true;
