@@ -62,12 +62,22 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/public/index.html'));
 });
 
-// Start server
+// Start server with error handling
 const server = app.listen(PORT, () => {
   console.log(`🚀 Chat server running on port ${PORT}`);
   console.log(`📍 API: http://localhost:${PORT}/api`);
   console.log(`📍 Health: http://localhost:${PORT}/health`);
   console.log(`🔷 Salesforce Ready: Named Credential Integration`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use!`);
+    console.error(`💡 Try: npx kill-port ${PORT}`);
+    console.error(`💡 Or change PORT in .env file`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', err);
+    process.exit(1);
+  }
 });
 
 // Initialize WebSocket
