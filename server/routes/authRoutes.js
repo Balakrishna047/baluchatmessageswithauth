@@ -1,24 +1,26 @@
 import express from 'express';
 import { AuthService } from '../auth/auth.js';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Register new user
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, email } = req.body;
+    const { username, password, email, userType } = req.body;
 
     if (!username || !password || !email) {
       return res.status(400).json({ 
+        success: false,
         error: 'Username, password, and email are required' 
       });
     }
 
-    const result = await AuthService.register(username, password, email);
+    const result = await AuthService.register(username, password, email, userType);
     
     res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'Registration successful',
       data: result
     });
   } catch (error) {
@@ -36,6 +38,7 @@ router.post('/login', async (req, res) => {
 
     if (!username || !password) {
       return res.status(400).json({ 
+        success: false,
         error: 'Username and password are required' 
       });
     }
@@ -56,21 +59,12 @@ router.post('/login', async (req, res) => {
 });
 
 // Verify token
-router.post('/verify', async (req, res) => {
+router.post('/verify', authenticateToken, async (req, res) => {
   try {
-    const { token } = req.body;
-
-    if (!token) {
-      return res.status(400).json({ 
-        error: 'Token is required' 
-      });
-    }
-
-    const decoded = AuthService.verifyToken(token);
-    
     res.json({
       success: true,
-      data: decoded
+      message: 'Token is valid',
+      user: req.user
     });
   } catch (error) {
     res.status(401).json({

@@ -5,19 +5,89 @@ class SecureChatClient {
         this.user = null;
         this.currentRoom = 'general';
         this.isConnected = false;
-        // Use localhost for development, production URL for deployed client
-        this.serverUrl = window.location.hostname === 'localhost' ? 'http://localhost:10000' : 'https://baluchatmessage.onrender.com';
+        this.reconnectAttempts = 0;
+        this.maxReconnectAttempts = 5;
+        this.typingTimeout = null;
+        this.isTyping = false;
+        
+        // UPDATED: Use production URL
+        this.serverUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:10000' 
+            : 'https://baluchatmessage.onrender.com';
+        
+        // WebSocket URL
+        this.wsUrl = window.location.hostname === 'localhost'
+            ? 'ws://localhost:10000'
+            : 'wss://baluchatmessage.onrender.com';
 
         this.initializeEventListeners();
+        this.checkSalesforceToken();
     }
 
     initializeEventListeners() {
         // Enter key support for message input
-        document.getElementById('messageInput')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                this.sendMessage();
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            });
+
+            // Typing indicator
+            messageInput.addEventListener('input', () => {
+                this.handleTyping();
+            });
+        }
+    }
+
+    // NEW: Check for Salesforce token in URL
+    checkSalesforceToken() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sfToken = urlParams.get('sfToken');
+        
+        if (sfToken) {
+            this.salesforceLogin(sfToken);
+        }
+    }
+
+    // NEW: Salesforce login method
+    async salesforceLogin(salesforceToken) {
+        try {
+            const response = await fetch(`${this.serverUrl}/api/auth/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: salesforceToken })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.token = salesforceToken;
+                this.user = data.data;
+                this.showMessage('Salesforce authentication successful!', 'success');
+                setTimeout(() => {
+                    this.showChat();
+                    this.showSalesforceBadge();
+                }, 1000);
+            } else {
+                this.showMessage('Salesforce authentication failed', 'error');
             }
-        });
+        } catch (error) {
+            console.error('Salesforce login error:', error);
+            this.showMessage('Salesforce authentication failed', 'error');
+        }
+    }
+
+    // NEW: Show Salesforce badge
+    showSalesforceBadge() {
+        const userBadge = document.getElementById('userBadge');
+        const salesforceBadge = document.getElementById('salesforceBadge');
+        
+        if (this.user && this.user.source === 'salesforce') {
+            if (userBadge) userBadge.style.display = 'block';
+            if (salesforceBadge) salesforceBadge.style.display = 'inline-block';
+        }
     }
 
     async register(username, email, password) {
@@ -77,15 +147,18 @@ class SecureChatClient {
         
         this.connectWebSocket();
         this.joinRoom(this.currentRoom);
+        this.showSalesforceBadge();
     }
 
     connectWebSocket() {
         try {
-            const wsUrl = this.serverUrl.replace(/^http/, 'ws');
+            const wsUrl = this.wsUrl;
             this.ws = new WebSocket(`${wsUrl}?token=${this.token}`);
 
             this.ws.onopen = () => {
                 this.isConnected = true;
+                this.reconnectAttempts = 0;
+                this.updateConnectionStatus('connected');
                 this.addSystemMessage('Connected to chat server');
             };
 
@@ -96,11 +169,14 @@ class SecureChatClient {
 
             this.ws.onclose = () => {
                 this.isConnected = false;
+                this.updateConnectionStatus('disconnected');
                 this.addSystemMessage('Disconnected from chat server');
+                this.attemptReconnect();
             };
 
             this.ws.onerror = (error) => {
                 console.error('WebSocket error:', error);
+                this.updateConnectionStatus('disconnected');
                 this.addSystemMessage('Connection error occurred');
             };
 
@@ -114,90 +190,168 @@ class SecureChatClient {
             case 'connection':
                 this.addSystemMessage(message.message);
                 break;
-                
-            case 'system':
-                this.addSystemMessage(message.message);
-                break;
-                
+            
             case 'chat':
-                this.addChatMessage(message.sender, message.content, message.timestamp);
+                this.displayMessage(message);
                 break;
-                
+            
+            case 'system':
+                this.addSystemMessage(message.content || message.message);
+                break;
+            
             case 'error':
-                this.showMessage('Error: ' + message.message, 'error');
+                this.addSystemMessage(message.message, 'error');
                 break;
+            
+            case 'typing_indicator':
+                this.showTypingIndicator(message.users);
+                break;
+            
+            case 'typing_clear':
+                this.hideTypingIndicator();
+                break;
+            
+            case 'pong':
+                // Handle ping/pong for connection health
+                break;
+            
+            default:
+                console.log('Unknown message type:', message.type);
+        }
+    }
+
+    attemptReconnect() {
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            setTimeout(() => {
+                console.log(`Reconnecting... Attempt ${this.reconnectAttempts}`);
+                this.connectWebSocket();
+            }, 3000);
+        } else {
+            this.addSystemMessage('Connection lost. Please refresh the page.', 'error');
         }
     }
 
     joinRoom(room) {
-        this.currentRoom = room;
-        document.getElementById('roomDisplay').textContent = room;
-        
-        if (this.ws && this.isConnected) {
-            this.ws.send(JSON.stringify({
-                type: 'join',
-                room: room
-            }));
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket not connected');
+            return;
         }
+
+        this.currentRoom = room;
+        this.ws.send(JSON.stringify({
+            type: 'join',
+            room: room
+        }));
+
+        // Clear messages when joining new room
+        document.getElementById('messagesContainer').innerHTML = '';
+        this.addSystemMessage(`Joined room: ${room}`);
     }
 
     sendMessage() {
-        const messageInput = document.getElementById('messageInput');
-        const content = messageInput.value.trim();
+        const input = document.getElementById('messageInput');
+        const content = input.value.trim();
 
-        if (!content) return;
-
-        if (this.ws && this.isConnected) {
-            this.ws.send(JSON.stringify({
-                type: 'chat',
-                content: content
-            }));
-            
-            messageInput.value = '';
-        } else {
-            this.showMessage('Not connected to chat server', 'error');
+        if (!content || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
         }
-    }
 
-    addSystemMessage(content) {
-        this.addMessage({
-            type: 'system',
+        this.ws.send(JSON.stringify({
+            type: 'chat',
+            content: content
+        }));
+
+        // Display sent message immediately
+        this.displayMessage({
+            type: 'chat',
+            sender: {
+                username: this.user.username,
+                name: this.user.name || this.user.username,
+                source: this.user.source,
+                role: this.user.role
+            },
             content: content,
             timestamp: new Date().toISOString()
-        });
+        }, true);
+
+        input.value = '';
+        this.stopTyping();
     }
 
-    addChatMessage(sender, content, timestamp) {
-        this.addMessage({
-            type: 'chat',
-            sender: sender,
-            content: content,
-            timestamp: timestamp
-        });
-    }
-
-    addMessage(message) {
-        const messagesDiv = document.getElementById('messages');
+    displayMessage(message, isSent = false) {
+        const container = document.getElementById('messagesContainer');
         const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${message.type}`;
+        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
 
-        if (message.type === 'system') {
-            messageDiv.innerHTML = `
-                <div style="color: #666; font-style: italic;">${message.content}</div>
-                <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
-            `;
-        } else {
-            messageDiv.innerHTML = `
-                <div class="message-header">
-                    <span class="sender">${message.sender}</span>
-                </div>
-                <div class="content">${this.escapeHtml(message.content)}</div>
-                <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
-            `;
+        const senderBadge = message.sender.source === 'salesforce' 
+            ? '<span class="badge salesforce-badge" style="font-size: 10px; margin-left: 5px;">⚡ SF</span>'
+            : '';
+
+        messageDiv.innerHTML = `
+            <div class="message-bubble">
+                ${!isSent ? `<div class="message-sender">${message.sender.name || message.sender.username}${senderBadge}</div>` : ''}
+                <div class="message-content">${this.escapeHtml(message.content)}</div>
+                <div class="message-time">${this.formatTime(message.timestamp)}</div>
+            </div>
+        `;
+
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    addSystemMessage(content, type = 'info') {
+        const container = document.getElementById('messagesContainer');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `system-message ${type}`;
+        messageDiv.textContent = content;
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    handleTyping() {
+        if (!this.isTyping) {
+            this.isTyping = true;
+            this.ws.send(JSON.stringify({ type: 'typing_start' }));
         }
 
-        messagesDiv.appendChild(messageDiv);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        clearTimeout(this.typingTimeout);
+        this.typingTimeout = setTimeout(() => {
+            this.stopTyping();
+        }, 2000);
+    }
+
+    stopTyping() {
+        if (this.isTyping) {
+            this.isTyping = false;
+            this.ws.send(JSON.stringify({ type: 'typing_stop' }));
+        }
+    }
+
+    showTypingIndicator(users) {
+        const indicator = document.getElementById('typingIndicator');
+        const text = document.getElementById('typingText');
+        
+        if (users && users.length > 0) {
+            const userList = users.join(', ');
+            text.textContent = `${userList} ${users.length === 1 ? 'is' : 'are'} typing...`;
+            indicator.style.display = 'block';
+        }
+    }
+
+    hideTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        indicator.style.display = 'none';
+    }
+
+    updateConnectionStatus(status) {
+        const statusElement = document.getElementById('connectionStatus');
+        statusElement.className = `connection-status ${status}`;
+        statusElement.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    }
+
+    formatTime(timestamp) {
+        return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     escapeHtml(unsafe) {
@@ -221,12 +375,17 @@ class SecureChatClient {
         
         this.token = null;
         this.user = null;
+        this.reconnectAttempts = 0;
         this.isConnected = false;
+        
+        localStorage.removeItem('chatToken');
+        localStorage.removeItem('chatUser');
         
         document.getElementById('chatSection').style.display = 'none';
         document.getElementById('authSection').style.display = 'block';
-        document.getElementById('messages').innerHTML = '';
+        document.getElementById('messagesContainer').innerHTML = '';
         document.getElementById('authMessage').innerHTML = '';
+        document.getElementById('typingIndicator').style.display = 'none';
         
         this.showLogin();
     }
@@ -291,4 +450,18 @@ function handleKeyPress(event) {
 
 function logout() {
     chatClient.logout();
+}
+
+// Add these functions at the end of the file
+
+function changeRoom() {
+    const roomSelect = document.getElementById('roomSelect');
+    const selectedRoom = roomSelect.value;
+    chatClient.currentRoom = selectedRoom;
+}
+
+function joinSelectedRoom() {
+    const roomSelect = document.getElementById('roomSelect');
+    const selectedRoom = roomSelect.value;
+    chatClient.joinRoom(selectedRoom);
 }
